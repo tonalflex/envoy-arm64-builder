@@ -1,0 +1,17 @@
+services:
+  envoy-builder:
+    image: envoy-devcontainer
+    container_name: envoy-builder
+    platform: linux/arm64
+    volumes:
+      - ./envoy:/envoy
+      - ./build:/build
+      - bazel-cache:/root/.cache/bazel
+    working_dir: /envoy
+    command: >
+      sh -c "BAZEL_BUILD_EXTRA_OPTIONS='--define tcmalloc=gperftools' ./ci/do_ci.sh bazel.release.server_only"
+    stdin_open: true
+    tty: true
+
+volumes:
+  bazel-cache:
