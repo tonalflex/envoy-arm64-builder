@@ -14,7 +14,7 @@ services:
       - NET_ADMIN
     security_opt:
       - seccomp:unconfined
-    network_mode: host
+    # network_mode: host
     volumes:
       - .:/workspace
       - ./build:/build:delegated
