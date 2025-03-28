@@ -38,6 +38,9 @@ jobs:
             --output=type=docker,dest=envoy-devcontainer.tar \
             envoy/.devcontainer
 
+      - name: 🐋 Load image into Docker
+        run: docker load -i envoy-devcontainer.tar
+
       - name: 🛠️ Run Docker Compose Build
         run: |
           DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker compose up --build --abort-on-container-exit
