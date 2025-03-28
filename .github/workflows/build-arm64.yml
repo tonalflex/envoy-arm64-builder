@@ -38,9 +38,9 @@ jobs:
             --output=type=docker,dest=envoy-devcontainer.tar \
             envoy/.devcontainer
 
-      - name: 🛠️ Run docker-compose build
+      - name: 🛠️ Run Docker Compose Build
         run: |
-          DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker-compose up --build --abort-on-container-exit
+          DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker compose up --build --abort-on-container-exit
 
       - name: 🧹 Clean up containers and volumes
         if: always()
