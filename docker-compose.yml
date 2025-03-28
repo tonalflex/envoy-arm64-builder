@@ -1,18 +1,39 @@
 services:
   envoy-builder:
+    environment:
+      - ENVOY_VERSION=v1.33.2
     image: envoy-devcontainer
     container_name: envoy-builder
     platform: linux/arm64
-    user: vscode
+    user: root
     cap_drop:
       - DAC_OVERRIDE
+    cap_add:
+      - SYS_PTRACE
+      - NET_RAW
+      - NET_ADMIN
+    security_opt:
+      - seccomp:unconfined
+    network_mode: host
     volumes:
       - .:/workspace
-      - ./build:/build
-      - bazel-cache:/root/.cache/bazel
+      - ./build:/build:delegated
+      - bazel-cache:/build/.cache/envoy-bazel
     working_dir: /workspace/envoy
+    entrypoint: ["bash", "-c"]
     command: >
-      sh -c "BAZEL_BUILD_EXTRA_OPTIONS='--define tcmalloc=gperftools' ./ci/do_ci.sh bazel.release.server_only"
+      "
+        echo '👷 Running setup as root...' &&
+        .devcontainer/setup.sh &&
+        mkdir -p /build/.cache/envoy-bazel &&
+        chown -R vscode:vscode /build/.cache/envoy-bazel &&
+        echo '🔄 Switching to vscode user...' &&
+        exec sudo -u vscode bash -c '
+          cd /workspace/envoy &&
+          BAZEL_BUILD_EXTRA_OPTIONS=\"--define tcmalloc=gperftools --sandbox_debug --verbose_failures\" \
+          ./ci/do_ci.sh release.server_only
+        '
+      "
     stdin_open: true
     tty: true
 
