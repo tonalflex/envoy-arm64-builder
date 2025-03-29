@@ -33,7 +33,7 @@ services:
         
         exec sudo -u vscode bash -c '
           cd /workspace/envoy &&
-          BAZEL_BUILD_EXTRA_OPTIONS=\"--define tcmalloc=gperftools --sandbox_debug --verbose_failures\" \
+          BAZEL_BUILD_EXTRA_OPTIONS=\"--define tcmalloc=gperftools" \
           ./ci/do_ci.sh release.server_only
         '
       "
