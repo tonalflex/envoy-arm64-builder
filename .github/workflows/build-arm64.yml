@@ -17,6 +17,9 @@ jobs:
         with:
           submodules: recursive
 
+      - name: 🔎 Show current file permissions
+        run: ls -la envoy && stat envoy/clang.bazelrc || true
+
       - name: 🐳 Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -42,7 +45,9 @@ jobs:
         run: docker load -i envoy-devcontainer.tar
 
       - name: 🔑 Fix permissions on mounted source
-        run: sudo chown -R 1000:1000 envoy
+        run: |
+          sudo chown -R 1000:1000 envoy
+          sudo chmod -R u+w envoy
 
       - name: 🛠️ Run Docker Compose Build
         run: |
