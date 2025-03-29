@@ -48,6 +48,8 @@ jobs:
         run: |
           sudo chown -R 1000:1000 envoy
           sudo chmod -R u+w envoy
+          sudo chown 1000:1000 .
+          sudo chmod u+w .
 
       - name: 🛠️ Run Docker Compose Build
         run: |
