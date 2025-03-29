@@ -26,7 +26,7 @@ services:
         .devcontainer/setup.sh &&
         mkdir -p /build/.cache/envoy-bazel &&
         chown -R vscode:vscode /build/.cache/envoy-bazel &&
-        find /workspace -path /workspace/.git -prune -o -exec chown vscode:vscode {} + &&
+        chown -R vscode:vscode /workspace &&
         echo '🔄 Switching to vscode user...' &&
         exec sudo -u vscode bash -c '
           cd /workspace/envoy &&
