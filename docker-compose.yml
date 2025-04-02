@@ -37,9 +37,8 @@ services:
         echo '👤 Switching to vscode user...' &&
         exec sudo -u vscode bash -c '
           export XDG_CACHE_HOME=/build/.cache/envoy-bazel &&
-          cd /workspace/envoy &&
-          BAZEL_BUILD_EXTRA_OPTIONS=\"--define tcmalloc=gperftools --sandbox_debug --verbose_failures\" \
-          ./ci/do_ci.sh release.server_only &&
+          export BAZEL_BUILD_EXTRA_OPTIONS=\"--define tcmalloc=gperftools\" &&
+          cd /workspace/envoy && ./ci/do_ci.sh release.server_only &&
 
           echo \"📂 Copying binary to workspace/bin directory...\" &&
           mkdir -p /workspace/bin && chown vscode:vscode /workspace/bin &&
@@ -65,7 +64,7 @@ services:
 
         echo '📦 Unpacking release.tar.zst...' &&
         apk add --no-cache zstd tar && \
-        unzstd release.tar.zst && \
+        unzstd -f release.tar.zst && \
         tar -xf release.tar && \
 
         echo '✅ Unpacking complete! Files unpacked in /workspace/bin'
