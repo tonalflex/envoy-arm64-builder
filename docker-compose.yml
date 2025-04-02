@@ -14,31 +14,144 @@ services:
       - NET_ADMIN
     security_opt:
       - seccomp:unconfined
+    network_mode: host
     volumes:
       - .:/workspace
-      - ./build:/build:delegated
       - bazel-cache:/build/.cache/envoy-bazel
     working_dir: /workspace/envoy
     entrypoint: ["bash", "-c"]
-    command: >
-      "
-        echo '👷 Running setup as root...' &&
-
-        .devcontainer/setup.sh &&
-        mkdir -p /build/.cache/envoy-bazel &&
-        chown -R vscode:vscode /build/.cache/envoy-bazel &&
-        chown -R vscode:vscode /workspace &&
-
-        echo '🔄 Switching to vscode user...' &&
-        
-        exec sudo -u vscode bash -c '
-          cd /workspace/envoy &&
-          BAZEL_BUILD_EXTRA_OPTIONS=\"--define tcmalloc=gperftools\" \
-          ./ci/do_ci.sh release.server_only
-        '
-      "
     stdin_open: true
     tty: true
+    command: >
+      "
+        echo '👷 Checking for existing cache...' &&
+        if [ -z \"$(ls -A /build/.cache/envoy-bazel 2>/dev/null)\" ]; then
+          echo '🔧 No cache found, running Envoy setup...' &&
+          .devcontainer/setup.sh ;
+        else
+          echo '✅ Bazel cache already exists, skipping setup.';
+        fi &&
+
+        echo '📂 Fixing permissions on Bazel cache...' &&
+        mkdir -p /build/.cache/envoy-bazel ;
+        chown vscode:vscode /build/.cache/envoy-bazel &&
+
+        echo '👤 Switching to vscode user...' &&
+        exec sudo -u vscode bash -c '
+          export XDG_CACHE_HOME=/build/.cache/envoy-bazel &&
+          cd /workspace/envoy &&
+          BAZEL_BUILD_EXTRA_OPTIONS=\"--define tcmalloc=gperftools --sandbox_debug --verbose_failures\" \
+          ./ci/do_ci.sh release.server_only &&
+
+          echo \"📂 Copying binary to workspace/bin directory...\" &&
+          mkdir -p /workspace/bin && chown vscode:vscode /workspace/bin &&
+          cp /build/.cache/envoy-bazel/envoy/arm64/bin/release.tar.zst /workspace/bin/ &&
+
+          echo \"✅ Envoy build completed!\"
+        '
+      "
+
+  envoy-unpacker:
+    image: alpine:3.19
+    container_name: envoy-unpacker
+    depends_on:
+      - envoy-builder
+    volumes:
+      - .:/workspace
+    working_dir: /workspace/bin
+    entrypoint: ["sh", "-c"]
+    command: >
+      "
+        echo '🕐 Waiting for release.tar.zst...' &&
+        while [ ! -f /workspace/bin/release.tar.zst ]; do sleep 2; done &&
+
+        echo '📦 Unpacking release.tar.zst...' &&
+        apk add --no-cache zstd tar && \
+        unzstd release.tar.zst && \
+        tar -xf release.tar && \
+
+        echo '✅ Unpacking complete! Files unpacked in /workspace/bin'
+      "
 
 volumes:
   bazel-cache:
+# services:
+#   envoy-builder:
+#     environment:
+#       - ENVOY_VERSION=v1.33.2
+#     image: envoy-devcontainer
+#     container_name: envoy-builder
+#     platform: linux/arm64
+#     user: root
+#     cap_drop:
+#       - DAC_OVERRIDE
+#     cap_add:
+#       - SYS_PTRACE
+#       - NET_RAW
+#       - NET_ADMIN
+#     security_opt:
+#       - seccomp:unconfined
+#     volumes:
+#       - .:/workspace
+#       - ./build:/build:delegated
+#     working_dir: /workspace/envoy
+#     entrypoint: ["bash", "-c"]
+#     stdin_open: true
+#     tty: true
+#     command: >
+#       "
+#         echo '🔧 Running setup as root...' &&
+#         .devcontainer/setup.sh &&
+
+#         echo '📂 Fixing permissions on Bazel cache...' &&
+#         mkdir -p /build/.cache/envoy-bazel &&
+#         chown -R vscode:vscode /build/.cache/envoy-bazel &&
+
+#         echo '👤 Switching to vscode user and building...' &&
+#         exec sudo -u vscode bash -c '
+#           mkdir -p /build/.cache/envoy-bazel &&
+#           cd /workspace/envoy &&
+
+#           BAZEL_BUILD_EXTRA_OPTIONS=\"--define tcmalloc=gperftools --sandbox_debug --verbose_failures\" \
+#           ./ci/do_ci.sh release.server_only &&
+
+#           echo \"📦 Copying & unpacking binary...\" &&
+#           mkdir -p /workspace/bin &&
+#           cp /build/.cache/envoy-bazel/envoy/arm64/bin/release.tar.zst /workspace/bin/ &&
+
+#           echo \"✅ Done! Binary available in /bin...\" && \
+#           tail -f /dev/null
+#         '
+#       "
+
+# envoy-unpacker:
+# command: >
+#   "
+#     echo '🔧 Running setup as root...' &&
+#     .devcontainer/setup.sh &&
+
+#     echo '📂 Fixing permissions on Bazel cache...' &&
+#     mkdir -p /build/.cache/envoy-bazel &&
+#     chown -R vscode:vscode /build/.cache/envoy-bazel &&
+
+#     echo '👤 Switching to vscode user and building...' &&
+#     exec sudo -u vscode bash -c '
+#       # mkdir -p /build/.cache/envoy-bazel &&
+#       cd /workspace/envoy &&
+
+#       # BAZEL_BUILD_EXTRA_OPTIONS=\"--define tcmalloc=gperftools --sandbox_debug --verbose_failures\" \
+#       # ./ci/do_ci.sh release.server_only &&
+
+#       echo \"📦 Copying & unpacking binary...\" &&
+#       mkdir -p /workspace/bin &&
+#       # cp /build/.cache/envoy-bazel/envoy/arm64/bin/release.tar.zst /workspace/bin/ &&
+#       cd /workspace/bin && \
+#       sudo apt-get update && sudo apt-get install -y zstd && \
+#       unzstd release.tar.zst && \
+#       tar -xf release.tar &&
+
+#       echo \"✅ Done! Binary available in /bin...\" && \
+#       tail -f /dev/null
+#     '
+#   "
+
