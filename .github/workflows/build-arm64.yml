@@ -1,0 +1,67 @@
+name: Build Envoy (ARM64)
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  build-envoy:
+    name: 🔧 Build Envoy on ARM64
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: 📦 Checkout repository
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: 🔎 Show current file permissions
+        run: ls -la envoy && stat envoy/clang.bazelrc || true
+
+      - name: 🐳 Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: ⚙️ Set up QEMU for cross-compilation
+        uses: docker/setup-qemu-action@v3
+
+      - name: 🧹 Free up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet \
+                       /usr/local/lib/android \
+                       /opt/ghc \
+                       "$AGENT_TOOLSDIRECTORY"
+
+      - name: 🐋 Build the envoy-devcontainer image for ARM64
+        run: |
+          docker buildx build \
+            --platform linux/arm64 \
+            -t envoy-devcontainer \
+            --output=type=docker,dest=envoy-devcontainer.tar \
+            envoy/.devcontainer
+
+      - name: 🐋 Load image into Docker
+        run: docker load -i envoy-devcontainer.tar
+
+      - name: 🔑 Fix permissions on mounted source
+        run: |
+          sudo chown -R 1000:1000 envoy
+          sudo chmod -R u+w envoy
+          sudo chown 1000:1000 .
+          sudo chmod u+w .
+
+      - name: 🛠️ Run Docker Compose Build
+        run: |
+          DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker compose up --build --abort-on-container-exit
+
+      - name: 🧹 Clean up containers and volumes
+        if: always()
+        run: docker-compose down -v
+
+      - name: 📤 Upload compiled Envoy binary
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: envoy-binary
+          path: build/envoy

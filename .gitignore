@@ -1,0 +1,5 @@
+# .gitignore
+.bazel-cache/
+bin/
+.env
+*.log
